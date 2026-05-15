@@ -260,7 +260,7 @@ body {
   // 이미 로그인된 경우 앱으로 이동
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
-    window.location.href = '/app';
+    window.location.href = '/app.html';
     return;
   }
 
@@ -304,7 +304,7 @@ body {
       showError(loginError, msg);
     } else {
       // 첫 로그인 여부 확인 (must_change_password 플래그)
-      const mustChange = loginData.user?.user_metadata?.must_change_password;
+      const mustChange = loginData.user && loginData.user.user_metadata && loginData.user.user_metadata.must_change_password;
       if (mustChange) {
         showChangePasswordForm(loginData.user);
       } else {
