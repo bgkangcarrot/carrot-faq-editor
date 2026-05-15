@@ -2,49 +2,59 @@ let currentUser = null;
 let currentProfile = null;
 
 async function initAuth() {
-  // 세션 확인 - getSession 대신 getUser로 확실하게 확인
-  const { data: { user }, error } = await sb.auth.getUser();
+  // URL에 토큰이 있는 경우 처리 (이메일 링크 등)
+  const hash = window.location.hash;
+  if (hash && hash.includes('access_token')) {
+    const { data, error } = await sb.auth.setSession({
+      access_token: new URLSearchParams(hash.slice(1)).get('access_token'),
+      refresh_token: new URLSearchParams(hash.slice(1)).get('refresh_token')
+    });
+  }
 
-  if (error || !user) {
+  // 세션 확인 - 최대 5초 대기
+  let user = null;
+  for (let i = 0; i < 10; i++) {
+    const { data } = await sb.auth.getSession();
+    if (data.session) {
+      user = data.session.user;
+      break;
+    }
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  if (!user) {
     window.location.href = '/';
     return false;
   }
   currentUser = user;
 
-  // 프로필 로드 재시도 로직 (DB 반영 지연 대응)
-  let profile = null;
-  for (let i = 0; i < 3; i++) {
-    const { data, error: pErr } = await sb.from('profiles')
-      .select('*')
-      .eq('id', currentUser.id)
-      .single();
-
-    if (data) { profile = data; break; }
-    if (i < 2) await new Promise(r => setTimeout(r, 1000)); // 1초 대기 후 재시도
-  }
+  // 프로필 로드
+  const { data: profile } = await sb.from('profiles')
+    .select('*')
+    .eq('id', currentUser.id)
+    .single();
 
   if (!profile) {
-    // 프로필이 없으면 직접 생성 (트리거 실패 대비)
-    const { data: newProfile, error: cErr } = await sb.from('profiles')
+    // 프로필 없으면 직접 생성
+    const { data: newProfile, error } = await sb.from('profiles')
       .insert({
         id: currentUser.id,
         email: currentUser.email,
         name: currentUser.email.split('@')[0],
-        role: 'admin' // 첫 번째 계정이므로 admin
+        role: 'admin'
       })
       .select()
       .single();
 
-    if (cErr || !newProfile) {
-      console.error('프로필 생성 실패', cErr);
+    if (error || !newProfile) {
       await sb.auth.signOut();
       window.location.href = '/';
       return false;
     }
-    profile = newProfile;
+    currentProfile = newProfile;
+  } else {
+    currentProfile = profile;
   }
-
-  currentProfile = profile;
 
   // 상단 UI 업데이트
   const nameEl = document.getElementById('header-name');
