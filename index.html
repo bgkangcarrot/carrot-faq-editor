@@ -285,11 +285,9 @@ body {
         : error.message.includes('Email not confirmed') ? '이메일 인증이 필요합니다. 메일함을 확인하세요'
         : error.message;
       showError(loginError, msg);
-      } else {
-  // 세션 확실히 저장될 때까지 잠깐 대기
-  await new Promise(r => setTimeout(r, 500));
-  window.location.href = '/app';
-      }
+} else {
+  window.location.href = '/app.html';
+}
   });
 
   // Enter 키 로그인
