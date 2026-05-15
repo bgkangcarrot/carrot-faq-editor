@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한화손보 캐롯 FAQ 편집툴</title>
+<style>
+:root{
+  --ink:#3A2F2C;--ink2:#60514D;--ink3:#948179;
+  --line:#E1D4C9;--line2:#EFE6DC;--bg:#F7F1E9;--panel:#fff;
+  --or:#F37323;--ord:#D85F18;--orm:#F89B6C;--orl:#FBB584;--orb:#FFF1E5;
+  --dan:#C0392B;--suc:#2E8B57;--inf:#5D6BB4;
+  --r:8px;--sh:0 1px 2px rgba(58,47,44,.06);--shm:0 4px 12px rgba(58,47,44,.10);
+  --sans:-apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif;
+  --mono:"D2Coding","Consolas","Menlo",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--bg)}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:inherit;font-size:inherit}
+
+.app{display:grid;grid-template-rows:52px 1fr;height:100vh}
+.topbar{background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 18px;gap:0;flex-shrink:0}
+.brand-text{font-size:15px;font-weight:700;color:var(--ink)}
+.brand-sub{color:var(--ink3);font-size:13px;font-weight:500;margin-left:6px;padding-left:8px;border-left:1px solid var(--line)}
+.tab-bar{display:flex;align-items:stretch;gap:0;margin-left:22px;height:52px}
+.tab-btn{height:52px;padding:0 20px;font-size:13.5px;font-weight:600;color:var(--ink3);border-bottom:3px solid transparent;display:flex;align-items:center;gap:7px;transition:all .12s;white-space:nowrap}
+.tab-btn:hover{color:var(--ink2)}
+.tab-btn.active{color:var(--or);border-bottom-color:var(--or)}
+.top-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:6px;font-size:13px;font-weight:500;border:1px solid var(--line);background:#fff;color:var(--ink);transition:all .12s;white-space:nowrap;cursor:pointer}
+.btn:hover{background:var(--bg);border-color:#C8BAB0}
+.btn-primary{background:var(--or);color:#fff;border-color:var(--or)}
+.btn-primary:hover{background:var(--ord);border-color:var(--ord)}
+.btn-ghost{border-color:transparent}
+.btn-ghost:hover{background:var(--bg)}
+.btn-sm{height:28px;padding:0 10px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.role-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.role-badge.admin{background:var(--orb);color:var(--ord)}
+.role-badge.editor{background:#EFF7EE;color:var(--suc)}
+.tdiv{width:1px;height:20px;background:var(--line)}
+.tab-pane{display:none;height:100%;overflow:hidden}
+.tab-pane.active{display:flex;flex-direction:column}
+
+/* 로딩 오버레이 */
+.loading-overlay{position:fixed;inset:0;background:rgba(247,241,233,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px}
+.loading-overlay.hidden{display:none}
+.spinner{width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--or);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--ink2)}
+
+/* 사이드바 공용 */
+.sidebar{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:12px 14px 10px;border-bottom:1px solid var(--line2);flex-shrink:0}
+.search-wrap{position:relative}
+.search-wrap input{width:100%;height:34px;padding:0 10px 0 32px;border:1px solid var(--line);border-radius:6px;background:var(--bg);outline:none;font-size:13px;transition:all .12s}
+.search-wrap input:focus{background:#fff;border-color:var(--or);box-shadow:0 0 0 3px rgba(243,115,35,.12)}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink3)}
+.catsel{width:100%;height:32px;padding:0 28px 0 9px;border:1px solid var(--line);border-radius:5px;background:var(--bg);font-size:12.5px;color:var(--ink);outline:none;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' stroke='%23948179' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;cursor:pointer;margin-top:5px}
+.catsel:focus{border-color:var(--or);background-color:#fff;box-shadow:0 0 0 3px rgba(243,115,35,.12)}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.chip{padding:3px 9px;border-radius:999px;background:var(--bg);color:var(--ink2);font-size:12px;border:1px solid transparent;cursor:pointer;transition:all .12s}
+.chip:hover{background:var(--line2)}
+.chip.active{background:var(--orb);color:var(--ord);font-weight:600}
+.list-meta{padding:6px 13px;font-size:12px;color:var(--ink3);border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;flex-shrink:0}
+.dcnt{color:var(--ord);font-weight:600}
+.faq-list{flex:1;overflow-y:auto}
+.faq-item{padding:9px 13px;border-bottom:1px solid var(--line2);cursor:pointer;transition:background .1s;display:flex;align-items:flex-start;gap:9px}
+.faq-item:hover{background:var(--bg)}
+.faq-item.active{background:var(--orb);box-shadow:inset 3px 0 0 var(--or)}
+.faq-item.edited{background:#EFF7EE}
+.fi-body{flex:1;min-width:0}
+.fi-meta{display:flex;gap:5px;align-items:center;margin-bottom:3px;flex-wrap:wrap}
+.fid{display:inline-block;padding:1px 5px;background:var(--line2);border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.fdot{width:6px;height:6px;border-radius:50%;background:var(--ink3);flex-shrink:0}
+.fdot.use{background:var(--suc)}
+.fdot.dirty{background:var(--or)}
+.fcat{font-size:11px;color:var(--ink3)}
+.ftitle{font-size:13px;line-height:1.4;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.empty{padding:32px 14px;text-align:center;color:var(--ink3);font-size:13px;line-height:1.6}
+
+/* DIST TAB */
+.asgn-input{width:100%;height:28px;padding:0 8px;border:1px solid transparent;border-radius:4px;background:transparent;font-size:12.5px;color:var(--ink);outline:none;transition:all .12s;font-family:var(--sans)}
+.asgn-input:hover{border-color:var(--line);background:#fff}
+.asgn-input:focus{border-color:var(--or);background:#fff;box-shadow:0 0 0 2px rgba(243,115,35,.12)}
+.asgn-input.has-val{color:var(--ord);font-weight:600}
+.dist-table-row{border-bottom:1px solid var(--line2)}
+.dist-table-row:hover td{background:#FEFCFA}
+.dist-table-row td{padding:7px 12px;vertical-align:middle}
+.dist-table-row.filtered-out{display:none}
+
+/* EDITOR TAB */
+.ed-main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.ed-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink3);gap:10px}
+.ed-empty-icon{width:52px;height:52px;border-radius:13px;background:var(--orb);color:var(--or);display:flex;align-items:center;justify-content:center}
+.ed-empty h3{font-size:14px;color:var(--ink2);font-weight:600}
+.ed-active{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.help-bar{background:linear-gradient(90deg,var(--orb),var(--bg));border-bottom:1px solid var(--line);padding:6px 18px;font-size:12px;color:var(--ord);display:flex;gap:12px;align-items:center;flex-shrink:0}
+.kbd{display:inline-block;padding:1px 5px;background:#fff;border:1px solid var(--line);border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--ink2);box-shadow:0 1px 0 var(--line)}
+.ed-header{background:var(--panel);border-bottom:1px solid var(--line);padding:11px 18px;flex-shrink:0;display:flex;align-items:center;gap:10px}
+.title-input{flex:1;border:none;outline:none;font-size:17px;font-weight:600;color:var(--ink);background:transparent}
+.title-input::placeholder{color:var(--ink3);font-weight:400}
+.toolbar{background:var(--panel);border-bottom:1px solid var(--line);padding:6px 18px;display:flex;gap:3px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.tb{height:28px;min-width:28px;padding:0 6px;border-radius:4px;color:var(--ink2);display:inline-flex;align-items:center;justify-content:center;gap:3px;font-size:13px;transition:all .1s}
+.tb:hover{background:var(--line2);color:var(--ink)}
+.tb-sep{width:1px;height:16px;background:var(--line);margin:0 3px}
+.clr-wrap{position:relative}
+.clr-pop{position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:var(--shm);padding:6px;display:none;z-index:100;grid-template-columns:repeat(6,1fr);gap:3px;width:148px}
+.clr-pop.open{display:grid}
+.cswatch{width:20px;height:20px;border-radius:3px;border:1px solid var(--line);cursor:pointer;transition:transform .1s}
+.cswatch:hover{transform:scale(1.15)}
+.ed-scroll{flex:1;overflow-y:auto;padding:16px 18px 60px}
+.etabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.etab{padding:7px 11px;font-size:13px;color:var(--ink3);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500;cursor:pointer;transition:all .12s}
+.etab.active{color:var(--ord);border-bottom-color:var(--or)}
+
+/* Phone frame */
+.phone{width:296px;margin:0 auto;background:var(--ink);border-radius:22px;padding:5px;box-shadow:0 0 0 1px var(--ink2),0 10px 24px rgba(58,47,44,.12);position:relative}
+.phone::before{content:'';position:absolute;top:9px;left:50%;transform:translateX(-50%);width:44px;height:4px;background:var(--ink2);border-radius:2px;z-index:2}
+.phone-scr{background:#fff;border-radius:17px;overflow:hidden;display:flex;flex-direction:column}
+.ph-status{height:25px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:4px 16px 0;font-size:10px;font-weight:700;color:var(--ink)}
+.ph-nav{height:38px;background:#fff;border-bottom:1px solid var(--line2);display:flex;align-items:center;padding:0 11px;gap:8px}
+.ph-nav .back{color:var(--ink2);font-size:15px}
+.ph-nav .ptitle{font-size:13px;font-weight:600;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ph-q{padding:10px 13px 8px;border-bottom:1px solid var(--line2);background:linear-gradient(180deg,#FBF7F2 0%,#fff 100%)}
+.ph-q .qm{display:inline-block;width:15px;height:15px;border-radius:50%;background:var(--or);color:#fff;text-align:center;line-height:15px;font-size:9px;font-weight:700;margin-right:5px;vertical-align:1px}
+.ph-q .qt{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.4}
+.ph-q .qt:empty::before{content:"(질문 제목)";color:var(--ink3);font-weight:400}
+.ph-body{background:#fff;min-height:280px;max-height:520px;overflow-y:auto}
+.ph-body .ed-body{font-size:13px;line-height:1.65;color:#333;padding:12px 13px 20px;min-height:260px;outline:none}
+.ph-body .ed-body:empty::before{content:attr(data-ph);color:var(--ink3)}
+.ph-body .ed-body a{color:var(--inf);text-decoration:underline}
+.ph-body .ed-body a[data-faq-id]{color:var(--ord);text-decoration:underline;cursor:help}
+.ph-body .ed-body a[data-faq-id]::before{content:"FAQ#" attr(data-faq-id) " ";font-size:11px;background:var(--orb);color:var(--ord);padding:1px 3px;border-radius:3px;font-weight:600}
+.ph-body .ed-body img{max-width:100%;height:auto;border-radius:4px}
+.ph-body .ed-body table{border-collapse:collapse;width:100%;margin:6px 0}
+.ph-body .ed-body td,.ph-body .ed-body th{border:1px solid var(--line);padding:5px 6px}
+.ph-body .ed-body th{background:var(--bg);font-weight:600}
+.ph-body::-webkit-scrollbar{width:3px}
+.ph-body::-webkit-scrollbar-thumb{background:#D5D5D5;border-radius:2px}
+.src-wrap{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.html-src{width:100%;min-height:280px;padding:13px 16px;border:none;outline:none;background:#FAFBFC;font-family:var(--mono);font-size:12px;line-height:1.6;resize:vertical;color:var(--ink);white-space:pre-wrap;word-break:break-all}
+.sec-label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink3);font-weight:600;margin-bottom:6px;padding:0 2px}
+.prev-sec{margin-top:20px}
+
+/* MERGE TAB */
+.mzone{display:flex;flex-direction:column;gap:7px}
+.mzone-title{font-size:13px;font-weight:600;color:var(--ink2)}
+.mchip{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;background:var(--bg);border:1px solid var(--line);border-radius:5px;font-size:12px;color:var(--ink2)}
+.mchip .fname{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mchip .rm{color:var(--ink3);font-size:13px;cursor:pointer;padding:0 2px}
+.mchip .rm:hover{color:var(--dan)}
+.diff-table{width:100%;border-collapse:collapse;font-size:13px}
+.diff-table th{background:var(--bg);padding:8px 11px;text-align:left;font-weight:600;font-size:12px;color:var(--ink2);border-bottom:2px solid var(--line);position:sticky;top:0;z-index:1}
+.diff-table td{padding:7px 11px;border-bottom:1px solid var(--line2);vertical-align:top}
+.diff-table tr:hover td{background:#FEFCFA}
+.did{font-family:var(--mono);font-size:12px;color:var(--ink3);white-space:nowrap}
+.dfield{font-size:12px;color:var(--ink3);white-space:nowrap}
+.dold{color:var(--ink3);background:#FFF5F5;border-radius:4px;padding:5px 8px;font-size:12px;line-height:1.5;max-height:72px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.dnew{color:var(--ink);background:#F0FBF4;border-radius:4px;padding:5px 8px;font-size:12px;line-height:1.5;max-height:72px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.dact{white-space:nowrap;display:flex;gap:4px}
+.dapply{display:inline-flex;align-items:center;height:25px;padding:0 9px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .1s}
+.dapply.acc{background:#EFF7EE;color:var(--suc)}
+.dapply.acc.on{background:var(--suc);color:#fff}
+.dapply.rej{background:#FEF0EE;color:var(--dan)}
+.dapply.rej.on{background:var(--dan);color:#fff}
+.dsec td{background:linear-gradient(90deg,var(--orb),var(--bg));font-weight:700;font-size:12px;color:var(--ord);padding:6px 11px;border-top:2px solid var(--orl)}
+.diff-empty{padding:40px;text-align:center;color:var(--ink3)}
+
+/* 계정관리 탭 */
+.user-table{width:100%;border-collapse:collapse;font-size:13px}
+.user-table th{background:var(--bg);padding:8px 14px;text-align:left;font-weight:600;font-size:12px;color:var(--ink2);border-bottom:2px solid var(--line)}
+.user-table td{padding:10px 14px;border-bottom:1px solid var(--line2);vertical-align:middle}
+.user-table tr:hover td{background:var(--bg)}
+.role-sel{height:28px;padding:0 8px;border:1px solid var(--line);border-radius:5px;font-size:12px;background:#fff;outline:none;cursor:pointer}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(58,47,44,.45);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:10px;width:90%;max-width:460px;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(58,47,44,.2)}
+.mh{padding:14px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.mh-title{font-size:15px;font-weight:600}
+.mb{padding:17px;overflow-y:auto}
+.mf{padding:11px 17px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.fg{margin-bottom:12px}
+.fg label{display:block;font-size:12px;color:var(--ink2);margin-bottom:4px;font-weight:500}
+.fg input[type=text],.fg input[type=email],.fg input[type=url],.fg input[type=number],.fg select,.fg textarea{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:5px;outline:none;font-size:13px;font-family:var(--sans)}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--or);box-shadow:0 0 0 3px rgba(243,115,35,.12)}
+.egrid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px}
+.ebtn{height:33px;border-radius:4px;font-size:18px;background:var(--bg);transition:all .1s;cursor:pointer;border:none}
+.ebtn:hover{background:var(--orb);transform:scale(1.1)}
+.esec-title{font-size:11px;color:var(--ink3);font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.esec{margin-bottom:9px}
+.error-inline{font-size:12px;color:var(--dan);margin-top:4px;display:none}
+.error-inline.show{display:block}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:6px;z-index:2000}
+.toast{background:var(--ink);color:#fff;padding:9px 14px;border-radius:6px;font-size:13px;box-shadow:var(--shm);animation:tin .16s ease-out;max-width:320px}
+.toast.suc{background:var(--suc)}
+.toast.err{background:var(--dan)}
+@keyframes tin{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#D5CABD;border-radius:5px;border:2px solid var(--panel)}
+::-webkit-scrollbar-thumb:hover{background:#B8AA9D}
+</style>
+</head>
+<body>
+
+<!-- 로딩 오버레이 -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">데이터를 불러오는 중...</div>
+</div>
+
+<div class="app">
+  <header class="topbar">
+    <span class="brand-text">한화손보 캐롯</span>
+    <span class="brand-sub">FAQ 편집툴</span>
+    <nav class="tab-bar" id="tab-bar">
+      <button class="tab-btn" id="tab-dist" data-tab="dist">📋 관리자</button>
+      <button class="tab-btn" id="tab-editor" data-tab="editor">✏️ 담당자</button>
+      <button class="tab-btn" id="tab-merge" data-tab="merge">📥 취합</button>
+      <button class="tab-btn admin-only" id="tab-accounts" data-tab="accounts">👥 계정관리</button>
+    </nav>
+    <div class="top-right">
+      <span id="header-name" style="font-size:13px;color:var(--ink2);font-weight:500"></span>
+      <span id="header-role" class="role-badge"></span>
+      <span class="tdiv"></span>
+      <button class="btn btn-ghost btn-sm admin-only" id="btn-upload">엑셀 불러오기</button>
+      <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none">
+      <button class="btn btn-ghost btn-sm admin-only" id="btn-new-item">+ 새 항목</button>
+      <button class="btn btn-primary btn-sm admin-only" id="btn-export">엑셀 다운로드</button>
+      <button class="btn btn-ghost btn-sm" id="btn-signout">로그아웃</button>
+    </div>
+  </header>
+
+  <!-- ══ DIST TAB ══ -->
+  <div class="tab-pane" id="pane-dist">
+    <div style="display:grid;grid-template-columns:220px 1fr;height:100%;overflow:hidden">
+      <aside class="sidebar">
+        <div class="sb-head">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:10px">필터</div>
+          <div class="search-wrap">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="dist-search" placeholder="ID 또는 제목 검색…">
+          </div>
+          <select id="dist-mc" class="catsel"><option value="">전체 대분류</option></select>
+          <select id="dist-cat" class="catsel"><option value="">전체 소분류</option></select>
+        </div>
+        <div style="padding:10px 14px;border-bottom:1px solid var(--line2);flex-shrink:0">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:8px">담당자별 보기</div>
+          <div id="assignee-filter-list"><button class="chip active" data-af="">전체</button></div>
+        </div>
+        <div style="padding:10px 14px;border-bottom:1px solid var(--line2);flex-shrink:0">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:8px">필터된 항목 일괄 지정</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input type="text" id="bulk-assignee" placeholder="담당자명" style="flex:1;min-width:0;height:30px;padding:0 9px;border:1px solid var(--line);border-radius:5px;font-size:12.5px;outline:none">
+            <button class="btn btn-sm" id="btn-bulk-assign">지정</button>
+          </div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:5px">현재 보이는 항목 전체에 적용</div>
+        </div>
+        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:7px;flex-shrink:0">
+          <button class="btn btn-sm btn-ghost" id="dist-clear-all" style="width:100%">전체 담당자 초기화</button>
+          <button class="btn btn-sm btn-primary" id="btn-save-assignees" style="width:100%">담당자 지정 저장 →</button>
+        </div>
+      </aside>
+
+      <div style="display:flex;flex-direction:column;overflow:hidden;background:var(--bg)">
+        <div style="background:var(--panel);border-bottom:1px solid var(--line);padding:10px 18px;display:flex;align-items:center;gap:14px;flex-shrink:0;flex-wrap:wrap">
+          <span id="dist-cnt" style="font-size:13px;color:var(--ink2)">0개</span>
+          <span id="dist-assigned-cnt" style="font-size:13px;color:var(--or);font-weight:600"></span>
+          <div style="margin-left:auto;font-size:12px;color:var(--ink3)">담당자 지정 후 <b>담당자 지정 저장</b>으로 DB에 반영</div>
+        </div>
+        <div style="flex:1;overflow:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:580px">
+            <thead>
+              <tr style="background:var(--bg);position:sticky;top:0;z-index:1">
+                <th style="width:58px;padding:8px 12px;text-align:left;font-weight:600;font-size:12px;color:var(--ink2);border-bottom:2px solid var(--line)">ID</th>
+                <th style="padding:8px 12px;text-align:left;font-weight:600;font-size:12px;color:var(--ink2);border-bottom:2px solid var(--line)">질문</th>
+                <th style="width:110px;padding:8px 12px;text-align:left;font-weight:600;font-size:12px;color:var(--ink2);border-bottom:2px solid var(--line)">분류</th>
+                <th style="width:140px;padding:8px 12px;text-align:left;font-weight:600;font-size:12px;color:var(--ink2);border-bottom:2px solid var(--line)">담당자</th>
+              </tr>
+            </thead>
+            <tbody id="dist-tbody"><tr><td colspan="4" style="padding:40px;text-align:center;color:var(--ink3)">데이터를 불러오는 중...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ EDITOR TAB ══ -->
+  <div class="tab-pane" id="pane-editor">
+    <div style="display:grid;grid-template-columns:280px 1fr;height:100%;overflow:hidden">
+      <aside class="sidebar">
+        <div class="sb-head">
+          <div class="search-wrap">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="ed-search" placeholder="ID 또는 제목 검색…">
+          </div>
+          <select id="ed-mc" class="catsel"><option value="">전체 대분류</option></select>
+          <select id="ed-cat" class="catsel"><option value="">전체 소분류</option></select>
+          <div class="chips">
+            <button class="chip active" data-ef="all">전체</button>
+            <button class="chip" data-ef="dirty">편집됨</button>
+            <button class="chip" data-ef="use">사용중</button>
+          </div>
+        </div>
+        <div id="ed-assignee-filter-wrap" style="display:none;padding:10px 14px;border-top:1px solid var(--line2)">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);margin-bottom:7px">담당자별 보기</div>
+          <div id="ed-assignee-filter-list"></div>
+        </div>
+        <div class="list-meta"><span id="ed-cnt">0개</span><span id="ed-dirty" class="dcnt"></span></div>
+        <div class="faq-list" id="ed-list"><div class="empty">데이터를 불러오는 중...</div></div>
+      </aside>
+      <div class="ed-main">
+        <div class="ed-empty" id="ed-empty">
+          <div class="ed-empty-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M11 13H8M16 17H8"/></svg></div>
+          <h3>편집할 항목을 선택하세요</h3>
+          <p>좌측 목록에서 FAQ를 클릭하세요</p>
+        </div>
+        <div class="ed-active" id="ed-active" style="display:none">
+          <div class="help-bar"><span><span class="kbd">Ctrl+B</span> 굵게 · <span class="kbd">Ctrl+U</span> 밑줄 · <span class="kbd">Ctrl+S</span> 저장</span></div>
+          <div class="ed-header">
+            <input type="text" class="title-input" id="ed-title" placeholder="질문 제목">
+            <input type="hidden" id="ed-id"><input type="hidden" id="ed-mc-h"><input type="hidden" id="ed-cat-h"><input type="hidden" id="ed-reguser-h"><input type="hidden" id="ed-isuse-h">
+            <button class="btn btn-sm btn-ghost" id="btn-revert">변경 취소</button>
+            <button class="btn btn-sm btn-primary" id="btn-save-item">저장</button>
+          </div>
+          <div class="toolbar">
+            <button class="tb" data-cmd="bold"><b>B</b></button>
+            <button class="tb" data-cmd="underline"><u>U</u></button>
+            <button class="tb" data-cmd="italic"><i>I</i></button>
+            <button class="tb" data-cmd="strikeThrough"><s>S</s></button>
+            <div class="tb-sep"></div>
+            <div class="clr-wrap">
+              <button class="tb" id="btn-color"><span style="display:inline-block;width:13px;height:13px;border-radius:2px;background:linear-gradient(135deg,var(--or),var(--orl))"></span>▾</button>
+              <div class="clr-pop" id="clr-pop"></div>
+            </div>
+            <button class="tb" data-cmd="removeFormat">✕서식</button>
+            <div class="tb-sep"></div>
+            <button class="tb" id="btn-emoji">😀</button>
+            <button class="tb" id="btn-link-ext">🔗 링크</button>
+            <button class="tb" id="btn-link-faq">↪ FAQ링크</button>
+            <button class="tb" id="btn-table">⊞ 표</button>
+            <div class="tb-sep"></div>
+            <button class="tb" id="btn-divider"><span style="font-size:11px">— 구분</span></button>
+          </div>
+          <div class="ed-scroll">
+            <div class="etabs">
+              <button class="etab active" data-etab="visual">시각편집 (모바일 미리보기)</button>
+              <button class="etab" data-etab="source">HTML 코드</button>
+            </div>
+            <div id="ed-visual">
+              <div class="phone">
+                <div class="phone-scr">
+                  <div class="ph-status"><span id="ph-time">9:41</span><span>📶 🔋</span></div>
+                  <div class="ph-nav"><span class="back">‹</span><span class="ptitle">자주하는 질문</span></div>
+                  <div class="ph-q"><span class="qm">Q</span><span class="qt" id="ph-q"></span></div>
+                  <div class="ph-body"><div class="ed-body" id="ed-body" contenteditable="true" data-ph="여기에 답변 내용을 작성하세요"></div></div>
+                </div>
+              </div>
+            </div>
+            <div id="ed-source" style="display:none"><div class="src-wrap"><textarea class="html-src" id="ed-src" placeholder="HTML 직접 편집"></textarea></div></div>
+            <div class="prev-sec">
+              <div class="sec-label">📋 엑셀 content 컬럼 최종 HTML</div>
+              <div class="src-wrap"><textarea class="html-src" id="ed-out" readonly style="background:#FBF6EE;color:var(--ord);font-weight:500"></textarea></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MERGE TAB ══ -->
+  <div class="tab-pane" id="pane-merge">
+    <div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+      <div style="background:var(--panel);border-bottom:1px solid var(--line);padding:14px 22px;display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;flex-shrink:0">
+        <div class="mzone">
+          <div class="mzone-title">담당자 편집 파일 업로드 (JSON)</div>
+          <button class="btn btn-ghost btn-sm" id="btn-merge-add">📂 파일 추가</button>
+          <input type="file" id="merge-pkg-files" accept=".json" multiple style="display:none">
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px" id="merge-file-chips"></div>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" id="btn-run-merge" disabled>변경사항 비교 →</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:14px 22px" id="merge-body">
+        <div class="diff-empty">담당자 JSON 파일을 업로드한 뒤 "변경사항 비교"를 누르세요</div>
+      </div>
+      <div style="background:var(--panel);border-top:1px solid var(--line);padding:11px 22px;display:flex;align-items:center;gap:14px;flex-shrink:0">
+        <div class="msummary" id="merge-summary" style="font-size:13px;color:var(--ink2)">비교 결과가 없습니다</div>
+        <div style="margin-left:auto;display:flex;gap:7px">
+          <button class="btn btn-ghost btn-sm" id="btn-acc-all">전체 적용</button>
+          <button class="btn btn-ghost btn-sm" id="btn-rej-all">전체 제외</button>
+          <button class="btn btn-primary" id="btn-merge-dl" disabled>DB에 반영</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ACCOUNTS TAB ══ -->
+  <div class="tab-pane" id="pane-accounts">
+    <div style="display:flex;flex-direction:column;height:100%;overflow:hidden">
+      <div style="background:var(--panel);border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:12px;flex-shrink:0">
+        <span style="font-size:15px;font-weight:600;color:var(--ink)">계정 관리</span>
+        <button class="btn btn-primary btn-sm" id="btn-add-user" style="margin-left:auto">+ 계정 추가</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 22px">
+        <table class="user-table" id="user-table">
+          <thead><tr>
+            <th>이름</th><th>이메일</th><th>권한</th><th>가입일</th><th></th>
+          </tr></thead>
+          <tbody id="user-tbody"><tr><td colspan="5" style="padding:30px;text-align:center;color:var(--ink3)">불러오는 중...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay"><div class="modal" id="modal-box"></div></div>
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="/js/supabase.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/admin.js"></script>
+<script src="/js/editor.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
