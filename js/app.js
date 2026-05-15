@@ -100,7 +100,7 @@ const S = {
 /* ══════════════════════════════════════════════
    탭 전환
 ══════════════════════════════════════════════ */
-function switchTab(tab) {
+function switchTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('active',p.id==='pane-'+tab));
   if(tab==='accounts') loadUserTable();
@@ -257,8 +257,34 @@ function refreshEdList(){
   }).join('');
   el.querySelectorAll('.faq-item').forEach(item=>{item.addEventListener('click',()=>selectItem(item.dataset.id));});
 }
-function showEdEmpty(){document.getElementById('ed-empty').style.display='flex';document.getElementById('ed-active').style.display='none';S.ed.activeId=null;}
-function showEdActive(){document.getElementById('ed-empty').style.display='none';document.getElementById('ed-active').style.display='flex';}
+/* 모바일: 사이드바 ↔ 편집 화면 전환 */
+function isMobile(){ return window.innerWidth <= 767; }
+
+function showEditorView(){
+  if(!isMobile()) return;
+  document.getElementById('sidebar').classList.add('slide-out');
+  document.getElementById('ed-main').classList.add('slide-in');
+  // 뒤로가기 바 표시
+  const backBar = document.getElementById('mobile-back-bar');
+  if(backBar) backBar.style.display='flex';
+}
+function showListView(){
+  if(!isMobile()) return;
+  document.getElementById('sidebar').classList.remove('slide-out');
+  document.getElementById('ed-main').classList.remove('slide-in');
+}
+
+function showEdEmpty(){
+  document.getElementById('ed-empty').style.display='flex';
+  document.getElementById('ed-active').style.display='none';
+  S.ed.activeId=null;
+  if(isMobile()) showListView();
+}
+function showEdActive(){
+  document.getElementById('ed-empty').style.display='none';
+  document.getElementById('ed-active').style.display='flex';
+  if(isMobile()) showEditorView();
+}
 function selectItem(id){
   saveActive(true);
   const row=S.rows.find(r=>r.id===id); if(!row) return;
@@ -270,6 +296,8 @@ function selectItem(id){
   document.getElementById('ed-reguser-h').value=row.regUser||'';
   document.getElementById('ed-isuse-h').value=row.isUse||'';
   const phq=document.getElementById('ph-q'); if(phq) phq.textContent=row.title||'';
+  // 모바일 뒤로가기 타이틀
+  const mbt=document.getElementById('mobile-back-title'); if(mbt) mbt.textContent=row.title||'';
   const edBody=document.getElementById('ed-body');
   edBody.innerHTML=importHtml(row.content||'');
   updateOutput(); showEdActive(); refreshEdList();
@@ -594,17 +622,13 @@ function initEvents(){
   });
   // 엑셀 다운로드
   document.getElementById('btn-export').addEventListener('click',async function(){setLoading(true,'엑셀 생성 중...');try{await exportToExcel();}catch(e){toast('실패: '+e.message,'err');}finally{setLoading(false);}});
-  // 담당자 저장
+  // 담당자 저장 (관리자)
   document.getElementById('btn-save-assignees').addEventListener('click',async function(){
     setLoading(true,'담당자 지정 저장 중...');
     try{await updateAssignees(S.assigneeMap);toast('담당자 지정 저장됨','suc');}
     catch(e){toast('저장 실패: '+e.message,'err');}
     finally{setLoading(false);}
   });
-  // dist 이벤트
-  document.getElementById('dist-search').addEventListener('input',function(){S.dist.search=this.value;applyDistFilter();});
-  document.getElementById('dist-mc').addEventListener('change',function(){S.dist.filterMc=this.value;S.dist.filterCat='';refreshDistCatSelects();applyDistFilter();});
-  document.getElementById('dist-cat').addEventListener('change',function(){S.dist.filterCat=this.value;applyDistFilter();});
   document.getElementById('btn-bulk-assign').addEventListener('click',function(){
     const name=(document.getElementById('bulk-assignee').value||'').trim();
     if(!name){toast('담당자 이름을 입력하세요','err');return;}
@@ -685,13 +709,17 @@ function initEvents(){
   document.getElementById('btn-link-faq').addEventListener('click',withSavedRange(openLinkFaqModal));
   document.getElementById('btn-table').addEventListener('click',withSavedRange(openTableModal));
   document.getElementById('btn-divider').addEventListener('click',function(){saveRange();insertAtCursor('<br>○ 관련 질문을 확인해보세요!<br><br>');});
-  // merge
-  document.getElementById('btn-merge-add').addEventListener('click',()=>document.getElementById('merge-pkg-files').click());
-  document.getElementById('merge-pkg-files').addEventListener('change',function(e){Array.from(e.target.files).forEach(loadMergePkgFile);e.target.value='';});
-  document.getElementById('btn-run-merge').addEventListener('click',runMerge);
-  document.getElementById('btn-acc-all').addEventListener('click',function(){S.merge.diffs.forEach(d=>d.accept=true);renderDiff();updateMergeSummary();});
-  document.getElementById('btn-rej-all').addEventListener('click',function(){S.merge.diffs.forEach(d=>d.accept=false);renderDiff();updateMergeSummary();});
-  document.getElementById('btn-merge-dl').addEventListener('click',applyMergeToDB);
+  // merge 관련 이벤트 제거됨 (취합 탭 삭제)
+
+  // 담당자 지정 테이블 토글 (관리자 전용)
+  document.getElementById('btn-toggle-table').addEventListener('click',function(){
+    const panel=document.getElementById('admin-dist-panel');
+    panel.style.display='flex';
+    renderDistTable();
+  });
+  document.getElementById('btn-close-table').addEventListener('click',function(){
+    document.getElementById('admin-dist-panel').style.display='none';
+  });
   // 계정관리
   document.getElementById('btn-add-user').addEventListener('click',openAddUserModal);
   // 새 항목 (관리자)
@@ -711,6 +739,20 @@ function initEvents(){
   document.addEventListener('keydown',function(e){
     if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){e.preventDefault();saveItemToDB();}
     if(e.key==='Escape')closeModal();
+  });
+  // 모바일 뒤로가기
+  const mBackBtn = document.getElementById('btn-mobile-back');
+  if(mBackBtn) mBackBtn.addEventListener('click', function(){
+    saveActive(true);
+    showEdEmpty();
+  });
+  // 윈도우 리사이즈: 데스크탑으로 전환 시 슬라이드 클래스 제거
+  window.addEventListener('resize', function(){
+    if(!isMobile()){
+      document.getElementById('sidebar').classList.remove('slide-out');
+      document.getElementById('ed-main').classList.remove('slide-in');
+      const bb=document.getElementById('mobile-back-bar'); if(bb) bb.style.display='none';
+    }
   });
   // 시계
   setInterval(function(){const d=new Date(),h=document.getElementById('ph-time');if(h)h.textContent=d.getHours()+':'+(d.getMinutes()<10?'0':'')+d.getMinutes();},30000);
@@ -746,27 +788,41 @@ document.addEventListener('DOMContentLoaded', async function(){
   const ok = await initAuth();
   if(!ok) return;
 
-  // 관리자/편집자별 UI 제어
   const admin = isAdmin();
-  document.querySelectorAll('.admin-only').forEach(el=>{
-    el.style.display = admin ? '' : 'none';
-  });
-  if(!admin){
-    // 편집자는 담당자 탭만, 취합/관리자 탭 숨김
-    document.getElementById('tab-dist').style.display='none';
-    document.getElementById('tab-merge').style.display='none';
+
+  if(admin){
+    // 관리자: 편집 탭 + 계정관리 탭 + 관리자 전용 기능 표시
+    document.getElementById('tab-accounts').style.display='';
+    document.getElementById('btn-upload').style.display='';
+    document.getElementById('btn-new-item').style.display='';
+    document.getElementById('btn-export').style.display='';
+    document.getElementById('admin-assign-panel').style.display='';
+    document.getElementById('admin-table-toggle').style.display='';
+  } else {
+    // 편집자: 편집 탭만, 관리자 기능 모두 숨김
     document.getElementById('tab-accounts').style.display='none';
-    // 담당자 전용 버튼 추가 (편집결과 저장)
-    const exportBtn = document.getElementById('btn-export');
-    exportBtn.style.display='';
-    exportBtn.textContent='편집결과 저장 (JSON)';
-    exportBtn.classList.remove('admin-only');
-    exportBtn.addEventListener('click', exportEditResult);
+    document.getElementById('btn-upload').style.display='none';
+    document.getElementById('btn-new-item').style.display='none';
+    document.getElementById('btn-export').style.display='none';
+    document.getElementById('admin-assign-panel').style.display='none';
+    document.getElementById('admin-table-toggle').style.display='none';
   }
 
   initEvents();
   await loadData();
 
-  // 기본 탭
-  switchTab(admin ? 'dist' : 'editor');
+  // 관리자: 전체 목록, 편집자: 본인 담당 자동 필터
+  if(admin){
+    switchTab('editor');
+  } else {
+    switchTab('editor');
+    const myName = currentProfile.name;
+    const hasMyItems = Object.values(S.assigneeMap).some(a=>a===myName);
+    if(hasMyItems){
+      S.ed.filterAssignee = myName;
+      refreshEdAssigneeFilter();
+      refreshEdList();
+      toast(myName+'님 담당 항목 자동 필터 적용','suc');
+    }
+  }
 });
