@@ -4,34 +4,45 @@
    계정 관리
 ══════════════════════════════════════════════ */
 
-// 관리자가 새 사용자 계정 생성 (Supabase Admin API 우회 - invite 방식)
+// 읽기 쉬운 초기 비밀번호 생성 (영문+숫자, 8자리)
+function generateInitialPassword() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // 혼동되는 문자 제외 (0,o,1,l,i)
+  let pw = '';
+  for (let i = 0; i < 8; i++) {
+    pw += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return pw;
+}
+
+// 관리자가 새 사용자 계정 생성
+// 초기 비밀번호를 직접 설정하고 반환 → 관리자가 본인이 전달
 async function createUserAccount(email, name, role) {
-  // Service role key 없이는 직접 signUp만 가능
-  // 관리자가 임시 비밀번호로 계정 생성 → 사용자에게 비밀번호 재설정 메일 발송
-  const tempPassword = Math.random().toString(36).slice(-10) + 'A1!';
+  const initialPassword = generateInitialPassword();
 
   const { data, error } = await sb.auth.signUp({
     email,
-    password: tempPassword,
+    password: initialPassword,
     options: {
-      data: { name },
+      data: { name, must_change_password: true },
       emailRedirectTo: window.location.origin + '/'
     }
   });
 
   if (error) throw error;
 
-  // profiles 테이블에 role 업데이트 (트리거가 'editor'로 생성함)
+  // role이 admin이면 업데이트 (트리거가 기본 editor로 생성)
   if (data.user && role === 'admin') {
-    await sb.from('profiles').update({ role: 'admin', name }).eq('id', data.user.id);
+    await sb.from('profiles')
+      .update({ role: 'admin', name })
+      .eq('id', data.user.id);
+  } else if (data.user) {
+    await sb.from('profiles')
+      .update({ name })
+      .eq('id', data.user.id);
   }
 
-  // 비밀번호 재설정 메일 발송 (사용자가 직접 비밀번호 설정)
-  await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + '/'
-  });
-
-  return data.user;
+  // 초기 비밀번호 반환 (관리자가 직접 전달)
+  return { user: data.user, initialPassword };
 }
 
 // 전체 사용자 목록 (관리자만)

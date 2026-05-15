@@ -494,28 +494,53 @@ function openAddUserModal(){
   openModal(
     '<div class="mh"><div class="mh-title">계정 추가</div><button class="btn btn-ghost btn-icon" id="m-close">✕</button></div>'+
     '<div class="mb">'+
-      '<p style="font-size:13px;color:var(--ink2);margin-bottom:14px;line-height:1.5">계정을 생성하면 해당 이메일로 비밀번호 설정 링크가 발송됩니다.</p>'+
       '<div class="fg"><label>이메일</label><input type="email" id="new-email" placeholder="example@hanwha.com"></div>'+
       '<div class="fg"><label>이름</label><input type="text" id="new-name" placeholder="홍길동"></div>'+
       '<div class="fg"><label>권한</label><select id="new-role"><option value="editor">편집자</option><option value="admin">관리자</option></select></div>'+
-      '<div class="error-inline" id="add-user-err"></div>'+
+      '<div class="err-msg" id="add-user-err"></div>'+
     '</div>'+
     '<div class="mf"><button class="btn btn-ghost" id="m-cancel">취소</button><button class="btn btn-primary" id="m-confirm">계정 생성</button></div>'
   );
-  document.getElementById('m-close').addEventListener('click',closeModal);
-  document.getElementById('m-cancel').addEventListener('click',closeModal);
-  document.getElementById('m-confirm').addEventListener('click',async function(){
-    const email=document.getElementById('new-email').value.trim();
-    const name=document.getElementById('new-name').value.trim();
-    const role=document.getElementById('new-role').value;
-    const errEl=document.getElementById('add-user-err');
-    if(!email||!name){errEl.textContent='이메일과 이름을 입력하세요';errEl.classList.add('show');return;}
-    this.disabled=true; this.textContent='생성 중...';
+  document.getElementById('m-close').addEventListener('click', closeModal);
+  document.getElementById('m-cancel').addEventListener('click', closeModal);
+  document.getElementById('m-confirm').addEventListener('click', async function(){
+    const email = document.getElementById('new-email').value.trim();
+    const name = document.getElementById('new-name').value.trim();
+    const role = document.getElementById('new-role').value;
+    const errEl = document.getElementById('add-user-err');
+    if(!email || !name){ errEl.textContent='이메일과 이름을 입력하세요'; errEl.classList.add('show'); return; }
+    this.disabled = true; this.textContent = '생성 중...';
     try{
-      await createUserAccount(email,name,role);
-      closeModal(); toast(name+'님 계정 생성 완료. 비밀번호 설정 메일이 발송됩니다.','suc');
-      loadUserTable();
-    }catch(e){errEl.textContent=e.message;errEl.classList.add('show');this.disabled=false;this.textContent='계정 생성';}
+      const { initialPassword } = await createUserAccount(email, name, role);
+      // 완료 화면으로 교체 - 초기 비밀번호 표시
+      document.getElementById('modal-box').innerHTML =
+        '<div class="mh"><div class="mh-title">✅ 계정 생성 완료</div></div>'+
+        '<div class="mb">'+
+          '<p style="font-size:13px;color:var(--ink2);margin-bottom:16px;line-height:1.6">'+
+            '<b>'+esc(name)+'</b>님 계정이 생성됐습니다.<br>'+
+            '아래 초기 비밀번호를 담당자에게 직접 전달해주세요.'+
+          '</p>'+
+          '<div style="background:var(--orb);border:1px solid var(--orl);border-radius:8px;padding:16px;text-align:center;margin-bottom:14px">'+
+            '<div style="font-size:11px;color:var(--ord);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">초기 비밀번호</div>'+
+            '<div style="font-size:26px;font-weight:700;color:var(--ord);letter-spacing:4px;font-family:var(--mono)" id="init-pw-display">'+esc(initialPassword)+'</div>'+
+          '</div>'+
+          '<button class="btn btn-ghost" id="btn-copy-pw" style="width:100%;justify-content:center">📋 비밀번호 복사</button>'+
+          '<p style="font-size:12px;color:var(--ink3);margin-top:12px;line-height:1.5">'+
+            '담당자가 이 비밀번호로 첫 로그인하면 새 비밀번호를 설정하게 됩니다.'+
+          '</p>'+
+        '</div>'+
+        '<div class="mf"><button class="btn btn-primary" id="m-done">확인</button></div>';
+      document.getElementById('m-done').addEventListener('click', function(){ closeModal(); loadUserTable(); });
+      document.getElementById('btn-copy-pw').addEventListener('click', function(){
+        navigator.clipboard.writeText(initialPassword)
+          .then(()=>{ this.textContent='✓ 복사됨!'; this.style.color='var(--suc)'; })
+          .catch(()=>{ this.textContent=initialPassword; });
+      });
+    } catch(e){
+      errEl.textContent = e.message.includes('already registered') ? '이미 등록된 이메일입니다' : e.message;
+      errEl.classList.add('show');
+      this.disabled = false; this.textContent = '계정 생성';
+    }
   });
 }
 function withSavedRange(fn){return function(){saveRange();fn();};}

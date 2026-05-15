@@ -232,6 +232,23 @@ body {
       </div>
       <button class="btn-login" id="btn-reset">재설정 링크 보내기</button>
     </div>
+
+    <!-- 첫 로그인 비밀번호 변경 폼 -->
+    <div class="reset-form" id="change-pw-form">
+      <div class="card-title" style="margin-bottom:6px">새 비밀번호 설정</div>
+      <p style="font-size:13px;color:var(--ink3);margin-bottom:18px;line-height:1.5">첫 로그인입니다. 사용할 새 비밀번호를 설정해주세요.</p>
+      <div class="success-msg" id="change-pw-success"></div>
+      <div class="error-msg" id="change-pw-err"></div>
+      <div class="form-group">
+        <label>새 비밀번호 (8자 이상)</label>
+        <input type="password" id="new-pw" placeholder="새 비밀번호 입력" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>비밀번호 확인</label>
+        <input type="password" id="confirm-pw" placeholder="비밀번호 재입력" autocomplete="new-password">
+      </div>
+      <button class="btn-login" id="btn-change-pw">비밀번호 변경</button>
+    </div>
   </div>
 </div>
 
@@ -277,7 +294,7 @@ body {
     if (!email || !pw) { showError(loginError, '이메일과 비밀번호를 입력하세요'); return; }
 
     setLoading(btnLogin, true);
-    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    const { data: loginData, error } = await sb.auth.signInWithPassword({ email, password: pw });
     setLoading(btnLogin, false);
 
     if (error) {
@@ -286,7 +303,51 @@ body {
         : error.message;
       showError(loginError, msg);
     } else {
-      window.location.href = '/app';
+      // 첫 로그인 여부 확인 (must_change_password 플래그)
+      const mustChange = loginData.user?.user_metadata?.must_change_password;
+      if (mustChange) {
+        showChangePasswordForm(loginData.user);
+      } else {
+        await new Promise(r => setTimeout(r, 300));
+        window.location.href = '/app.html';
+      }
+    }
+  });
+
+  // ── 첫 로그인 비밀번호 변경 ──
+  function showChangePasswordForm(user) {
+    document.getElementById('main-form').classList.add('hide');
+    document.getElementById('change-pw-form').classList.add('show');
+  }
+
+  document.getElementById('btn-change-pw').addEventListener('click', async function() {
+    const newPw = document.getElementById('new-pw').value;
+    const confirmPw = document.getElementById('confirm-pw').value;
+    const errEl = document.getElementById('change-pw-err');
+    const successEl = document.getElementById('change-pw-success');
+    errEl.classList.remove('show');
+
+    if (!newPw || newPw.length < 8) {
+      errEl.textContent = '비밀번호는 8자 이상이어야 합니다'; errEl.classList.add('show'); return;
+    }
+    if (newPw !== confirmPw) {
+      errEl.textContent = '비밀번호가 일치하지 않습니다'; errEl.classList.add('show'); return;
+    }
+
+    this.disabled = true; this.textContent = '변경 중...';
+    // 비밀번호 업데이트 + must_change_password 플래그 제거
+    const { error } = await sb.auth.updateUser({
+      password: newPw,
+      data: { must_change_password: false }
+    });
+
+    if (error) {
+      errEl.textContent = error.message; errEl.classList.add('show');
+      this.disabled = false; this.textContent = '비밀번호 변경';
+    } else {
+      successEl.textContent = '비밀번호가 변경됐습니다. 앱으로 이동합니다...';
+      successEl.classList.add('show');
+      setTimeout(function() { window.location.href = '/app.html'; }, 1200);
     }
   });
 
